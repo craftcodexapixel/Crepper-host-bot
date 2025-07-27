@@ -39,6 +39,13 @@ async def on_message(message):
 
     content = message.content.lower()
 
+    # Bot mention basic response
+    if bot.user and bot.user.mention in message.content:
+        await message.channel.send("Yes, Did you mentioned me! How can I help you.....?")
+
+    await bot.process_commands(message)    
+
+    
     # 🧠 Spam detection
     user_id = message.author.id
     user_messages[user_id].append(content)

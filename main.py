@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands, tasks
+from discord import app_commands
 import os
 from collections import defaultdict
 from keep_alive import keep_alive
@@ -39,13 +40,6 @@ async def on_message(message):
 
     content = message.content.lower()
 
-    # Bot mention basic response
-    if bot.user and bot.user.mention in message.content:
-        await message.channel.send("Yes, Did you mentioned me! How can I help you.....?")
-
-    await bot.process_commands(message)    
-
-    
     # 🧠 Spam detection
     user_id = message.author.id
     user_messages[user_id].append(content)
@@ -85,9 +79,12 @@ async def servers(ctx):
 async def submitserver(ctx, *, server: str):
     save_server(server)
     await ctx.send(f"✅ Server '{server}' added to the list.")
-    submission_channel = discord.utils.get(ctx.guild.text_channels, name="server-submissions")
-    if submission_channel:
-        await submission_channel.send(f"🆕 {ctx.author} submitted: {server}")
+    
+    # Only try to post to submission channel if the command was used in a guild (not DM)
+    if ctx.guild:
+        submission_channel = discord.utils.get(ctx.guild.text_channels, name="server-submissions")
+        if submission_channel:
+            await submission_channel.send(f"🆕 {ctx.author} submitted: {server}")
 
 # 🎮 Skyblock server
 @bot.command()
@@ -144,8 +141,13 @@ async def on_ready():
     print(f"✅ Bot is online as: {bot.user}")
     for guild in bot.guilds:
         invites[guild.id] = await guild.invites()
-    # Optional: Set bot playing status
-    await bot.change_presence(activity=discord.Game(name="Minecraft Slayer | !myhelp"))
+    # Sync slash commands
+    try:
+        synced = await bot.tree.sync()
+        print(f"🔄 Synced {len(synced)} slash commands")
+    except Exception as e:
+        print(f"❌ Failed to sync commands: {e}")
+
 
 @bot.event
 async def on_member_join(member):
@@ -165,12 +167,75 @@ async def on_member_join(member):
     if channel:
         await channel.send(f"👋 Welcome {member.mention} to the server! Type `!myhelp` to begin.")
 
+# 🌐 Slash Commands
+@bot.tree.command(name="servers", description="Show all submitted Minecraft servers")
+async def slash_servers(interaction: discord.Interaction):
+    servers = load_servers()
+    if not servers:
+        await interaction.response.send_message("📭 No servers listed yet.")
+    else:
+        msg = "\n".join(f"🌐 {s}" for s in servers)
+        await interaction.response.send_message(f"📜 Available Servers:\n{msg}")
+
+@bot.tree.command(name="submitserver", description="Submit a new Minecraft server")
+@app_commands.describe(server="The server IP or name to add")
+async def slash_submitserver(interaction: discord.Interaction, server: str):
+    save_server(server)
+    await interaction.response.send_message(f"✅ Server '{server}' added to the list.")
+    
+    # Only try to post to submission channel if the command was used in a guild (not DM)
+    if interaction.guild:
+        submission_channel = discord.utils.get(interaction.guild.text_channels, name="server-submissions")
+        if submission_channel:
+            await submission_channel.send(f"🆕 {interaction.user} submitted: {server}")
+
+@bot.tree.command(name="skyblock", description="Get the recommended Skyblock server")
+async def slash_skyblock(interaction: discord.Interaction):
+    await interaction.response.send_message("🌲 Skyblock Server: `play.sky-mc.net`")
+
+@bot.tree.command(name="pvp", description="Get the recommended PvP server")
+async def slash_pvp(interaction: discord.Interaction):
+    await interaction.response.send_message("⚔️ PvP Server: `pvp.legendserver.net`")
+
+@bot.tree.command(name="login", description="Bind your Discord to a Minecraft username")
+@app_commands.describe(username="Your Minecraft username")
+async def slash_login(interaction: discord.Interaction, username: str):
+    await interaction.response.send_message(f"🔐 Bound Discord user `{interaction.user}` to Minecraft name `{username}`.")
+
+@bot.tree.command(name="creator", description="Meet the bot creator")
+async def slash_creator(interaction: discord.Interaction):
+    await interaction.response.send_message("👑 My creator is **Ansh** — the true Minecraft Slayer.")
+
+@bot.tree.command(name="bow", description="Bow before the legend")
+async def slash_bow(interaction: discord.Interaction):
+    await interaction.response.send_message("🛐 Bow before the legend — **Ansh**.")
+
+@bot.tree.command(name="ping", description="Check bot latency")
+async def slash_ping(interaction: discord.Interaction):
+    await interaction.response.send_message(f"🏓 Pong! Latency is `{round(bot.latency * 1000)}ms`")
+
+@bot.tree.command(name="help", description="Show all available commands")
+async def slash_help(interaction: discord.Interaction):
+    await interaction.response.send_message("""
+📘 **Bot Commands**
+- `/servers` – Show community Minecraft servers
+- `/submitserver <name>` – Submit your server to the list
+- `/skyblock` – Recommended skyblock server
+- `/pvp` – Recommended PvP server
+- `/login <username>` – Bind your Minecraft name
+- `/creator` – Meet the creator
+- `/bow` – Praise time
+- `/ping` – Check bot latency
+
+🔒 Anti-spam enabled. DM friendly. Minecraft forever!
+""")
+
 # 🔁 Optional: rotating bot status (uncomment to enable)
-# statuses = ["Minecraft Slayer", "!myhelp", "Skyblock Realms"]
-# @tasks.loop(seconds=20)
-# async def change_status():
-#     await bot.change_presence(activity=discord.Game(name=random.choice(statuses)))
-# change_status.start()
+statuses = ["Minecraft Slayer", "/help", "Skyblock Realms"]
+ @tasks.loop(seconds=20)
+ async def change_status():
+     await bot.change_presence(activity=discord.Game(name=random.choice(statuses)))
+ change_status.start()
 
 # 🌐 Keep-alive for Replit or web hosting
 keep_alive()
@@ -180,4 +245,3 @@ token = os.getenv("TOKEN")
 if not token:
     raise ValueError("TOKEN environment variable not set")
 bot.run(token)
-m

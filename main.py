@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 import os
+import random
 from collections import defaultdict
 from keep_alive import keep_alive
 
@@ -147,6 +148,9 @@ async def on_ready():
         print(f"🔄 Synced {len(synced)} slash commands")
     except Exception as e:
         print(f"❌ Failed to sync commands: {e}")
+    
+    # Start the rotating status task
+    change_status.start()
 
 
 @bot.event
@@ -230,12 +234,11 @@ async def slash_help(interaction: discord.Interaction):
 🔒 Anti-spam enabled. DM friendly. Minecraft forever!
 """)
 
-# 🔁 Optional: rotating bot status (uncomment to enable)
-statuses = ["Minecraft Slayer", "/help", "Skyblock Realms"]
- @tasks.loop(seconds=20)
- async def change_status():
-     await bot.change_presence(activity=discord.Game(name=random.choice(statuses)))
- change_status.start()
+# 🔁 Rotating bot status
+statuses = ["Minecraft Slayer", "/help", "Skyblock Realms", "PvP Battles", "Creepers & Zombies", "Ender Dragons", "Nether Portals", "Enchantments", "Mining Adventures", "Fishing Trips", "Crafting Creations", "Redstone Machines", "Villager Trades", "Beacon Power", "Elytra Flight", "Netherite Armor", "Ender Pearls", "Enchanted Books", "Custom Maps", "Server Hosting", "Minecraft Mods", "Discord Bots", "Minecraft News", "Minecraft Tips", "Minecraft Events", "Minecraft Updates", "Minecraft Community", "Minecraft Fun", "Minecraft Adventure", "Minecraft Survival", "Developing Crepper host", "Aternos x Crepper host", "Minecraft Hosting", "Minecraft Servers", "Minecraft Games", "Minecraft Life", "Minecraft World", "Minecraft Universe", "Minecraft Galaxy", "Minecraft Cosmos", "Minecraft Dimension",]
+@tasks.loop(seconds=5)
+async def change_status():
+    await bot.change_presence(activity=discord.Game(name=random.choice(statuses)))
 
 # 🌐 Keep-alive for Replit or web hosting
 keep_alive()
